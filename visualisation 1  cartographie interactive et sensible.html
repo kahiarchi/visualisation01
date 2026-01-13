@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Parcours – La Plaine / Aubervilliers</title>
+
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""/>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
+    }
+    #container {
+      display: flex;
+      height: 100vh;
+      width: 100%;
+    }
+    #sidebar {
+      width: 340px;
+      max-width: 35%;
+      border-right: 1px solid #ccc;
+      overflow-y: auto;
+      padding: 8px;
+      box-sizing: border-box;
+      background: #fafafa;
+    }
+    #map {
+      flex: 1;
+    }
+    h1 {
+      font-size: 1.1em;
+      margin: 4px 0 8px 0;
+    }
+    #trace-img {
+      width: 100%;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      border: 1px solid #ccc;
+    }
+    .caption {
+      font-size: 0.8em;
+      color: #555;
+      margin-bottom: 8px;
+    }
+    .item {
+      padding: 6px 4px;
+      margin-bottom: 4px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: #fff;
+    }
+    .item:hover {
+      background: #e8f4ff;
+      border-color: #3498db;
+    }
+    .item-title {
+      font-weight: bold;
+      font-size: 0.95em;
+    }
+    .item-meta, .item-emotion {
+      font-size: 0.8em;
+      color: #555;
+    }
+    .item-emotion {
+      color: #c0392b;
+    }
+    .popup-photo img {
+      max-width: 250px;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .emotion {
+      font-weight: bold;
+      color: #c0392b;
+    }
+    .meta {
+      font-size: 0.85em;
+      color: #555;
+    }
+  </style>
+</head>
+
+<body>
+<div id="container">
+  <div id="sidebar">
+    <h1>Parcours photographique</h1>
+
+    <!-- Carte statique du tracé -->
+    <img id="trace-img" src="parcours-aubervilliers.jpg"
+         alt="Tracé du parcours dans le quartier de la Plaine – Aubervilliers">
+    <div class="caption">
+      Carte statique du parcours suivi entre Recherche Nord, Front Populaire, canal Saint-Denis et centre d’Aubervilliers. [file:46][file:85]
+    </div>
+
+    <!-- Liste des photos -->
+    <div id="list"></div>
+  </div>
+
+  <!-- Carte interactive -->
+  <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+
+<script>
+// Données complètes du CSV, dans l'ordre du trajet [file:85]
+var data = [
+  {fichier_photo:"HUMATHEQUE.jpg",titre:"Photo 01 Humathèque",date:"2025-10-30",heure:"10:21:17",auteur:"Kahina",latitude:48.910093,longitude:2.366674,emotion:"Contraste émotionnel",intensite_emotion:10,pole_activite:"Campus recherche",style_archi:"Moderne",usage_ancien:"Aucun",usage_actuel:"Recherche et études",commentaire:"Émotion partagée entre la qualité architecturale du lieu et la tristesse liée au message politique affiché à l’intérieur"},
+  {fichier_photo:"Hotel a projet condorcet.jpg",titre:"Photo 02 Hotel a projet",date:"2025-10-30",heure:"10:22:45",auteur:"Kahina",latitude:48.909600,longitude:2.366931,emotion:"Sérénité",intensite_emotion:8,pole_activite:"Campus recherche",style_archi:"Moderne",usage_ancien:"Aucun",usage_actuel:"Hébergement et services",commentaire:"Architecture contemporaine intégrée au campus universitaire"},
+  {fichier_photo:"INFD.jpg",titre:"Photo 03 INFD",date:"2025-10-30",heure:"10:23:02",auteur:"Kahina",latitude:48.909300,longitude:2.366433,emotion:"Intérêt",intensite_emotion:8,pole_activite:"Campus recherche",style_archi:"Moderne",usage_ancien:"Aucun",usage_actuel:"Recherche et formation",commentaire:"Traitement de façade sobre et institutionnel"},
+  {fichier_photo:"Pole socio medical.jpg",titre:"Photo 04 Pole socio medical",date:"2025-10-30",heure:"10:24:07",auteur:"Kahina",latitude:48.909209,longitude:2.365987,emotion:"Apaisement",intensite_emotion:8,pole_activite:"Services publics",style_archi:"Contemporain",usage_ancien:"Aucun",usage_actuel:"Santé et services sociaux",commentaire:"Jeu de volumes et lisibilité fonctionnelle du bâtiment"},
+  {fichier_photo:"Recherche sud.jpg",titre:"Photo 05 Recherche Sud",date:"2025-10-30",heure:"10:24:25",auteur:"Kahina",latitude:48.908585,longitude:2.366121,emotion:"Admiration",intensite_emotion:10,pole_activite:"Campus recherche",style_archi:"Moderne",usage_ancien:"Aucun",usage_actuel:"Recherche scientifique",commentaire:"Expression architecturale affirmée du pôle recherche"},
+  {fichier_photo:"Maison des sciences de l'homme.jpg",titre:"Photo 06 Maison des sciences de l’homme",date:"2025-10-30",heure:"10:27:24",auteur:"Kahina",latitude:48.908229,longitude:2.365070,emotion:"Réflexion critique",intensite_emotion:9,pole_activite:"Campus recherche",style_archi:"Moderne",usage_ancien:"Aucun",usage_actuel:"Recherche en sciences humaines",commentaire:"Détournement militant du message sur l’égalité femmes-hommes"},
+  {fichier_photo:"Jardin coté front populaire.jpg",titre:"Photo 07 Jardin coté Front Populaire",date:"2025-10-30",heure:"10:30:07",auteur:"Kahina",latitude:48.906787,longitude:2.365134,emotion:"Joie",intensite_emotion:10,pole_activite:"Espace public",style_archi:"Paysager",usage_ancien:"Ancien espace industriel",usage_actuel:"Parc urbain",commentaire:"Observation des usages et de l’appropriation par les habitants"},
+  {fichier_photo:"Altère coté jardin.jpg",titre:"Photo 08 Altère coté jardin",date:"2025-10-30",heure:"10:31:08",auteur:"Kahina",latitude:48.907058,longitude:2.365413,emotion:"Bien-être",intensite_emotion:10,pole_activite:"Espace public",style_archi:"Contemporain",usage_ancien:"Voirie",usage_actuel:"Mobilité douce et détente",commentaire:"Bonne répartition entre circulation, repos et activités"},
+  {fichier_photo:"Centre des colloques condorcet.jpg",titre:"Photo 09 Centre des colloques condorcet",date:"2025-10-30",heure:"10:31:40",auteur:"Kahina",latitude:48.907153,longitude:2.366508,emotion:"Satisfaction",intensite_emotion:10,pole_activite:"Campus recherche",style_archi:"Moderne",usage_ancien:"Aucun",usage_actuel:"Événementiel académique",commentaire:"Architecture institutionnelle contemporaine"},
+  {fichier_photo:"BATIMENT AVEC TERRASSES VEGETALES.jpg",titre:"Photo 10 BATIMENT AVEC TERRASSES VEGETALES",date:"2025-10-30",heure:"10:32:24",auteur:"Kahina",latitude:48.906949,longitude:2.367296,emotion:"Inquiétude",intensite_emotion:5,pole_activite:"Habitat mixte",style_archi:"Moderne",usage_ancien:"Aucun",usage_actuel:"Logements et commerces",commentaire:"Questionnement sur la sécurité et la gestion des hauteurs"},
+  {fichier_photo:"Star academy.jpg",titre:"Photo 11 Star Academy",date:"2025-10-30",heure:"10:38:41",auteur:"Kahina",latitude:48.905045,longitude:2.367983,emotion:"Nostalgie joyeuse",intensite_emotion:10,pole_activite:"Pôle médias et arts",style_archi:"Industriel reconverti",usage_ancien:"Usine",usage_actuel:"Studio télévision",commentaire:"Reconversion emblématique d’un site industriel"},
+  {fichier_photo:"Jardin zone de fauche tardive.jpg",titre:"Photo 12 Jardin zone de fauche tardive",date:"2025-10-30",heure:"10:43:45",auteur:"Kahina",latitude:48.903841,longitude:2.367554,emotion:"Surprise",intensite_emotion:8,pole_activite:"Espace public",style_archi:"Paysager",usage_ancien:"Zone agricole",usage_actuel:"Parc urbain",commentaire:"Mémoire agricole matérialisée par la sculpture de la vache"},
+  {fichier_photo:"Studio 211.jpg",titre:"Photo 14 Studio 211",date:"2025-10-30",heure:"10:48:58",auteur:"Kahina",latitude:48.905510,longitude:2.367285,emotion:"Intérêt patrimonial",intensite_emotion:9,pole_activite:"Pôle médias et arts",style_archi:"Industriel",usage_ancien:"Usine",usage_actuel:"Studio audiovisuel",commentaire:"Hangar industriel reconverti en lieu de création"},
+  {fichier_photo:"ZONE D'ACTIVITES COMMERCIALES.jpg",titre:"Photo 15 ZONE D'ACTIVITES COMMERCIALES",date:"2025-10-30",heure:"11:09:25",auteur:"Kahina",latitude:48.908511,longitude:2.370139,emotion:"Fatigue modérée",intensite_emotion:7,pole_activite:"Pôle commercial",style_archi:"Hétérogène",usage_ancien:"Activités industrielles",usage_actuel:"Commerce et production",commentaire:"Superposition d’usages et d’époques"},
+  {fichier_photo:"Canal saint denis.jpg",titre:"Photo 16 Canal Saint Denis",date:"2025-10-30",heure:"11:17:03",auteur:"Kahina",latitude:48.915276,longitude:2.371896,emotion:"Déception",intensite_emotion:5,pole_activite:"Frange urbaine",style_archi:"Dégradé",usage_ancien:"Zone portuaire",usage_actuel:"Espaces informels",commentaire:"Contraste entre potentiel paysager et précarité visible"},
+  {fichier_photo:"projet en cours de réalisation.jpg",titre:"Photo 17 projet en cours de réalisation",date:"2025-10-30",heure:"11:17:48",auteur:"Kahina",latitude:48.915386,longitude:2.372977,emotion:"Espoir",intensite_emotion:8,pole_activite:"Renouvellement urbain",style_archi:"Moderne",usage_ancien:"Friches",usage_actuel:"Logements neufs",commentaire:"Projet structurant pour la requalification du secteur"},
+  {fichier_photo:"ancien tissu d'aubervilliers.jpg",titre:"Photo 18 ancien tissu d'aubervilliers",date:"2025-10-30",heure:"11:26:49",auteur:"Kahina",latitude:48.916077,longitude:2.376131,emotion:"Tristesse",intensite_emotion:5,pole_activite:"Quartier ancien",style_archi:"Traditionnel",usage_ancien:"Habitat ancien",usage_actuel:"Démolition",commentaire:"Perte du patrimoine bâti et rupture de continuité historique"},
+  {fichier_photo:"aubervilliers centre.jpg",titre:"Photo 19 aubervilliers centre",date:"2025-10-30",heure:"11:27:00",auteur:"Kahina",latitude:48.916027,longitude:2.377081,emotion:"Satisfaction prudente",intensite_emotion:8,pole_activite:"Quartier ancien",style_archi:"Traditionnel restauré",usage_ancien:"Habitat ancien",usage_actuel:"Habitat rénové",commentaire:"Exemple positif de restauration du bâti existant"},
+  {fichier_photo:"ROND POINT AUBERVILLIERS.jpg",titre:"Photo 20 ROND POINT AUBERVILLIERS",date:"2025-10-30",heure:"11:29:04",auteur:"Kahina",latitude:48.915308,longitude:2.376791,emotion:"Appréciation",intensite_emotion:8,pole_activite:"Nœud urbain",style_archi:"Mixte",usage_ancien:"Voirie",usage_actuel:"Espace de centralité",commentaire:"Flux importants et diversité des usages"},
+  {fichier_photo:"Résidence condorcet.jpg",titre:"Photo 21 Résidence Condorcet",date:"2025-10-30",heure:"11:54:12",auteur:"Kahina",latitude:48.912424,longitude:2.366508,emotion:"Satisfaction",intensite_emotion:8,pole_activite:"Habitat récent",style_archi:"Moderne",usage_ancien:"Aucun",usage_actuel:"Logements étudiants",commentaire:"Jeu de couleurs et de volumes contemporains"},
+  {fichier_photo:"Cour condorcet.jpg",titre:"Photo 22 Cour Condorcet",date:"2025-10-30",heure:"11:54:23",auteur:"Kahina",latitude:48.911592,longitude:2.366508,emotion:"Confort",intensite_emotion:8,pole_activite:"Habitat récent",style_archi:"Contemporain",usage_ancien:"Aucun",usage_actuel:"Espace collectif",commentaire:"Mobilier et qualité des espaces partagés"},
+  {fichier_photo:"Recherche nord.jpg",titre:"Photo 23 Recherche Nord",date:"2025-10-30",heure:"11:54:01",auteur:"Kahina",latitude:48.911624,longitude:2.366915,emotion:"Fatigue attentive",intensite_emotion:8,pole_activite:"Campus recherche",style_archi:"Moderne",usage_ancien:"Aucun",usage_actuel:"Recherche",commentaire:"Répétition du langage architectural institutionnel"}
+];
+
+// Carte Leaflet centrée sur le campus
+var map = L.map('map').setView([48.9100, 2.3665], 15);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap'
+}).addTo(map);
+
+var markers = [];
+var coords = [];
+var listDiv = document.getElementById('list');
+
+data.forEach(function(d, index) {
+  var lat = parseFloat(d.latitude);
+  var lon = parseFloat(d.longitude);
+  if (isNaN(lat) || isNaN(lon)) return;
+
+  coords.push([lat, lon]);
+
+  var popupHtml =
+    '<div class="popup-photo">' +
+      '<img src="' + d.fichier_photo + '" alt="' + d.titre + '">' +
+      '<div><strong>' + d.titre + '</strong></div>' +
+      '<div class="meta">' + d.date + ' ' + d.heure +
+        ' – ' + d.pole_activite + '</div>' +
+      '<div class="emotion">Émotion : ' + d.emotion +
+        ' (intensité ' + d.intensite_emotion + ')</div>' +
+      '<div class="meta">Style : ' + d.style_archi +
+        ' – Usage actuel : ' + d.usage_actuel + '</div>' +
+      '<div>' + d.commentaire + '</div>' +
+    '</div>';
+
+  var marker = L.marker([lat, lon]).addTo(map).bindPopup(popupHtml);
+  markers.push(marker);
+
+  var item = document.createElement('div');
+  item.className = 'item';
+  item.dataset.index = markers.length - 1;
+  item.innerHTML =
+    '<div class="item-title">' + d.titre + '</div>' +
+    '<div class="item-meta">' + d.date + ' ' + d.heure +
+      ' – ' + d.pole_activite + '</div>' +
+    '<div class="item-emotion">Émotion : ' + d.emotion +
+      ' (int. ' + d.intensite_emotion + ')</div>';
+  item.addEventListener('click', function() {
+    var i = parseInt(this.dataset.index, 10);
+    map.setView(markers[i].getLatLng(), 17);
+    markers[i].openPopup();
+  });
+  listDiv.appendChild(item);
+});
+
+// Trajet précis saisi à la main : 10h20 → 11h50
+var trajetCoords = [
+  [48.911624, 2.366915], // 10h20 – départ devant Recherche Nord
+  [48.911617, 2.366546], // Cours des Humanités
+  [48.909096, 2.366642],
+  [48.908987, 2.366628],
+  [48.909073, 2.364786],
+  [48.907637, 2.364570],
+  [48.907107, 2.364476],
+  [48.906968, 2.366913],
+  [48.906409, 2.366821],
+  [48.906122, 2.366948],
+  [48.905832, 2.366892],
+  [48.905722, 2.367873],
+  [48.903665, 2.367348],
+  [48.903637, 2.367736],
+  [48.904179, 2.367799],
+  [48.904235, 2.367482],
+  [48.905722, 2.367877],
+  [48.905819, 2.366904],
+  [48.906139, 2.366953],
+  [48.906426, 2.366819],
+  [48.907314, 2.366979],
+  [48.910321, 2.373000],
+  [48.912227, 2.373174],
+  [48.915305, 2.371181],
+  [48.915265, 2.374044],
+  [48.915753, 2.374264],
+  [48.916257, 2.374821],
+  [48.916134, 2.377006],
+  [48.915509, 2.376989],
+  [48.915185, 2.376854],
+  [48.915229, 2.375454],
+  [48.915255, 2.374047],
+  [48.915347, 2.368225],
+  [48.912733, 2.367810],
+  [48.912780, 2.366994],
+  [48.912235, 2.366880], // arrivée côté cour
+  [48.911822, 2.366694], // retour vers Recherche Nord
+  [48.911624, 2.366915]  // 11h50 – arrivée finale
+];
+
+// Tracer la polyline du trajet
+L.polyline(trajetCoords, {
+  color: 'red',
+  weight: 3,
+  opacity: 0.9
+}).addTo(map);
+
+// Adapter le zoom sur l’ensemble du trajet + points photo
+var bounds = L.latLngBounds(trajetCoords);
+if (coords && coords.length) {
+  coords.forEach(function(c) { bounds.extend(c); });
+}
+map.fitBounds(bounds);
+
+
+</script>
+</body>
+</html>
